@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: bcb
+    description: >
+      Central Bank of Brazil time series (SGS), loaded incrementally by
+      ingestion/load_fx.py.
+    schema: raw
+    tables:
+      - name: fx_usd_brl
+        description: Daily USD/BRL exchange rate, SGS series 1. Business days only.
+        config:
+          loaded_at_field: "cast(rate_date as timestamp)"
+          freshness:
+            warn_after: {count: 5, period: day}
+            error_after: {count: 10, period: day}

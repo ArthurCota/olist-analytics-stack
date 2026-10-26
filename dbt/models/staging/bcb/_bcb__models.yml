@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_bcb__fx_usd_brl
+    description: Daily USD/BRL exchange rate. One row per business day.
+    columns:
+      - name: rate_date
+        description: Business day of the quote.
+        data_tests:
+          - unique
+          - not_null
+      - name: brl_per_usd
+        description: How many reais one US dollar costs (free market sell rate).
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 10

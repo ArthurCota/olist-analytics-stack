@@ -1,0 +1,15 @@
+# dbt looks for this file in the current folder first, so no ~/.dbt setup is needed.
+# Auth uses your Application Default Credentials:  gcloud auth application-default login
+olist_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'olist-analytics-512803') }}"
+      dataset: analytics
+      location: US
+      threads: 4
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      priority: interactive
