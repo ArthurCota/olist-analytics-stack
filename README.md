@@ -50,9 +50,29 @@ Issues found in the raw data and how the staging layer handles them:
 
 Every staging model is covered by `unique`, `not_null`, `relationships` and `accepted_values` tests.
 
+## Data model
+
+Star schema in the `marts` dataset, built and tested with dbt:
+
+| Table | Grain | Highlights |
+|---|---|---|
+| `fct_orders` | one row per order | GMV and amount paid in BRL and USD, delivery days, lateness, review score, cohort month |
+| `fct_order_items` | one row per item | price and freight in BRL and USD, product and seller keys |
+| `dim_customer` | one row per person | cohort month, lifetime value, repeat flag, location |
+| `dim_product` | one row per product | category in Portuguese and English |
+| `dim_seller` | one row per seller | location and sales totals |
+| `dim_date` | one row per day | calendar attributes and the USD/BRL rate of the day |
+
+USD values use the Central Bank rate of the purchase date; weekends and holidays use the last business day's rate.
+
 ## Key results
 
-_TODO: headline numbers from the analysis._
+Preliminary numbers from the marts (full analysis in progress):
+
+- **Late deliveries kill satisfaction:** average review score is **2.27** for late orders vs **4.29** for on-time orders.
+- **Very low repeat purchase:** only **3.1%** of customers (2,997 of 96,096) ever placed a second order.
+- **GMV:** R$ 15.8M ≈ **US$ 4.7M** at daily exchange rates, across ~99k orders (Sep 2016 – Oct 2018).
+- **Average delivery time:** 12.5 days.
 
 ## How to run
 
@@ -85,6 +105,9 @@ ingestion/   Python scripts that load raw data into BigQuery
 dbt/         dbt project (staging, intermediate, marts, tests)
   models/staging/        one cleaned view per raw table (renaming, types, zip codes, keys)
   models/intermediate/   order-level joins: items, payments, reviews, daily FX rate, delivery metrics
+  models/marts/          star schema for BI: fct_orders, fct_order_items, dim_customer, dim_product, dim_seller, dim_date
+  seeds/                 small reference data (missing category translations)
+  tests/                 custom tests, e.g. item revenue reconciles with order revenue
 airflow/     Airflow DAGs and docker-compose
 notebooks/   Cohort analysis and revenue forecast
 dashboard/   Power BI file and screenshots

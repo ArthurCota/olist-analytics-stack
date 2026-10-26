@@ -1,0 +1,17 @@
+version: 2
+
+seeds:
+  - name: category_translation_overrides
+    description: >
+      English names for the two product categories that are missing from the
+      Olist translation file.
+    config:
+      schema: staging
+      column_types:
+        product_category_name: string
+        product_category_name_english: string
+    columns:
+      - name: product_category_name
+        data_tests:
+          - unique
+          - not_null

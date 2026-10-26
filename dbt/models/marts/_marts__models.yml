@@ -1,0 +1,153 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar with one row per day and the USD/BRL rate of that day.
+    columns:
+      - name: date_day
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: year_month
+        description: "Format YYYY-MM, handy for charts."
+      - name: brl_per_usd
+        description: >
+          USD/BRL rate (last business day on weekends and holidays). Null only
+          for 2016-01-01 to 2016-01-03, before the first published rate; there
+          are no orders on those days.
+        data_tests:
+          - not_null:
+              config:
+                where: "date_day >= '2016-01-04'"
+
+  - name: dim_customer
+    description: >
+      One row per person (customer_unique_id). Address is the one used on the
+      most recent order. Lifetime value excludes canceled and unavailable orders.
+    columns:
+      - name: customer_unique_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: cohort_month
+        description: Month of the first purchase.
+        data_tests:
+          - not_null
+      - name: is_repeat_customer
+        description: True when the person placed more than one order.
+      - name: lifetime_value_brl
+        description: Sum of items + freight over valid orders, in BRL.
+
+  - name: dim_product
+    description: One row per product, with the category in Portuguese and English.
+    columns:
+      - name: product_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: category_name
+        description: Category in English ('unknown' when the product has no category).
+        data_tests:
+          - not_null
+
+  - name: dim_seller
+    description: One row per seller with location and sales totals (valid orders only).
+    columns:
+      - name: seller_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fct_orders
+    description: >
+      One row per order. Revenue is items + freight (GMV); payment_value is the
+      amount actually paid. USD values use the rate of the purchase date.
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_olist__orders')
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_unique_id
+      - name: purchase_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: is_valid_order
+        description: False for canceled and unavailable orders.
+      - name: order_value_brl
+        description: Items + freight in BRL.
+      - name: order_value_usd
+        description: Items + freight in USD.
+        data_tests:
+          - not_null
+      - name: is_late
+        description: Delivered after the estimated date. Null if not delivered.
+      - name: cohort_month
+        description: Month of the customer's first purchase.
+        data_tests:
+          - not_null
+      - name: months_since_first_purchase
+        description: 0 for orders in the cohort month, 1 for the next month, and so on.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+
+  - name: fct_order_items
+    description: One row per item sold.
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_olist__order_items')
+    columns:
+      - name: order_item_key
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_id
+      - name: seller_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_seller')
+                field: seller_id
+      - name: purchase_date
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: price_usd
+        data_tests:
+          - not_null
