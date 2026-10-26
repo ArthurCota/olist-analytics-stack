@@ -1,5 +1,7 @@
 # Olist Analytics Stack
 
+[![dbt CI](https://github.com/ArthurCota/olist-analytics-stack/actions/workflows/dbt-ci.yml/badge.svg)](https://github.com/ArthurCota/olist-analytics-stack/actions/workflows/dbt-ci.yml)
+
 > End-to-end analytics pipeline on real Brazilian e-commerce data: daily orchestrated ingestion, a cloud data warehouse, tested dbt models, cohort analysis and a revenue dashboard in BRL and USD.
 
 🚧 **Work in progress** — being built in public, step by step.
@@ -73,6 +75,13 @@ Preliminary numbers from the marts (full analysis in progress):
 - **Very low repeat purchase:** only **3.1%** of customers (2,997 of 96,096) ever placed a second order.
 - **GMV:** R$ 15.8M ≈ **US$ 4.7M** at daily exchange rates, across ~99k orders (Sep 2016 – Oct 2018).
 - **Average delivery time:** 12.5 days.
+
+## CI
+
+Every pull request and every push to `main` runs [`dbt build`](.github/workflows/dbt-ci.yml) on GitHub Actions:
+all models are built and tested in isolated datasets (`ci_staging`, `ci_intermediate`, `ci_marts`),
+so a broken model or a failing test blocks the change before it reaches the real tables.
+Authentication uses **Workload Identity Federation**: no service account keys are stored in GitHub.
 
 ## How to run
 

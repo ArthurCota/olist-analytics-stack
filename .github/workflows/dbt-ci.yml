@@ -1,0 +1,76 @@
+name: dbt CI
+
+# Builds and tests every dbt model in isolated datasets (ci_staging, ci_intermediate,
+# ci_marts) on each pull request and on every push to main.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: dbt-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write   # lets GitHub prove its identity to Google (Workload Identity Federation)
+
+env:
+  GCP_PROJECT_ID: olist-analytics-512803
+
+jobs:
+  dbt-build:
+    name: dbt build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: dbt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r ../requirements.txt
+
+      - name: Authenticate to Google Cloud (keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/39493287935/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: dbt-ci@olist-analytics-512803.iam.gserviceaccount.com
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: Check connection
+        run: dbt debug --target ci
+
+      - name: Build and test all models
+        run: dbt build --target ci
+
+      - name: Check source freshness
+        # informational: the exchange rate stops being fresh while the daily DAG is not running
+        run: dbt source freshness --target ci
+        continue-on-error: true
+
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts
+          path: |
+            dbt/target/run_results.json
+            dbt/target/manifest.json
+            dbt/logs/dbt.log
+          if-no-files-found: ignore
+          retention-days: 14
