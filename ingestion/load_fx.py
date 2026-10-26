@@ -15,6 +15,8 @@ import pandas as pd
 import requests
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from common import ensure_dataset, get_client
 
@@ -22,6 +24,30 @@ SERIES_ID = 1  # Dólar americano (venda) - comercial
 TABLE = "fx_usd_brl"
 START_DATE = date(2016, 1, 1)  # Olist orders start in 2016
 URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series}/dados"
+TIMEOUT = (10, 90)  # (connect, read) seconds — the BCB API can be slow
+
+
+def make_session() -> requests.Session:
+    """HTTP session with retries and backoff: the BCB API often times out or returns 5xx."""
+    retry = Retry(
+        total=5,
+        connect=5,
+        read=5,
+        backoff_factor=2,  # waits 2s, 4s, 8s, 16s...
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=("GET",),
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    session.headers.update({
+        # The API is known to reject or stall requests without a browser-like User-Agent
+        "User-Agent": "Mozilla/5.0 (olist-analytics-stack; +https://github.com/ArthurCota/olist-analytics-stack)",
+        "Accept": "application/json",
+    })
+    return session
+
+
+SESSION = make_session()
 
 
 def last_loaded_date(client: bigquery.Client, table_id: str) -> date | None:
@@ -38,7 +64,8 @@ def fetch(start: date, end: date) -> pd.DataFrame:
         "dataInicial": start.strftime("%d/%m/%Y"),
         "dataFinal": end.strftime("%d/%m/%Y"),
     }
-    resp = requests.get(URL.format(series=SERIES_ID), params=params, timeout=30)
+    print(f"Fetching USD/BRL {start} -> {end}...")
+    resp = SESSION.get(URL.format(series=SERIES_ID), params=params, timeout=TIMEOUT)
     if resp.status_code == 404:  # no data in the window (e.g. only a weekend)
         return pd.DataFrame(columns=["rate_date", "usd_brl"])
     resp.raise_for_status()
