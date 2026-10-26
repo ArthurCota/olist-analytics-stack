@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+*.json.key
+service-account*.json
+
+# Raw data (too big for git — download from Kaggle)
+data/raw/*
+!data/raw/.gitkeep
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Airflow
+airflow/logs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
