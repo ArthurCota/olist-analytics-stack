@@ -1,5 +1,7 @@
 # dbt looks for this file in the current folder first, so no ~/.dbt setup is needed.
-# Auth uses your Application Default Credentials:  gcloud auth application-default login
+# Auth uses Application Default Credentials:
+#   - locally: gcloud auth application-default login
+#   - in GitHub Actions: Workload Identity Federation (no keys stored anywhere)
 olist_analytics:
   target: dev
   outputs:
@@ -12,4 +14,15 @@ olist_analytics:
       threads: 4
       job_execution_timeout_seconds: 300
       job_retries: 1
+      priority: interactive
+
+    ci:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'olist-analytics-512803') }}"
+      dataset: ci            # models go to ci_staging, ci_intermediate, ci_marts
+      location: US
+      threads: 8
+      job_execution_timeout_seconds: 600
+      job_retries: 2
       priority: interactive
