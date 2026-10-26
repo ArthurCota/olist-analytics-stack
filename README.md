@@ -83,7 +83,8 @@ dbt build
 ```
 ingestion/   Python scripts that load raw data into BigQuery
 dbt/         dbt project (staging, intermediate, marts, tests)
-  models/staging/   one cleaned view per raw table (renaming, types, zip codes, keys)
+  models/staging/        one cleaned view per raw table (renaming, types, zip codes, keys)
+  models/intermediate/   order-level joins: items, payments, reviews, daily FX rate, delivery metrics
 airflow/     Airflow DAGs and docker-compose
 notebooks/   Cohort analysis and revenue forecast
 dashboard/   Power BI file and screenshots

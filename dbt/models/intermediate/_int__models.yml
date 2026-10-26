@@ -1,0 +1,91 @@
+version: 2
+
+models:
+  - name: int_fx_rates_daily
+    description: >
+      One row per calendar day with the USD/BRL rate. Weekends and holidays
+      reuse the last published rate.
+    columns:
+      - name: calendar_date
+        data_tests:
+          - unique
+          - not_null
+      - name: rate_date
+        description: Business day the rate was actually published.
+        data_tests:
+          - not_null
+      - name: brl_per_usd
+        data_tests:
+          - not_null
+      - name: is_carried_forward
+        description: True when the rate was copied from an earlier business day.
+
+  - name: int_order_items_aggregated
+    description: One row per order that has items.
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: order_value_brl
+        description: Items + freight in BRL (gross merchandise value).
+
+  - name: int_order_payments_aggregated
+    description: One row per order that has payments.
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: main_payment_type
+        description: Payment method that covered the largest share of the order.
+
+  - name: int_order_reviews_aggregated
+    description: One row per reviewed order. review_score is the latest review.
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_orders_enriched
+    description: >
+      One row per order with customer, items, payments, review, delivery
+      metrics and values in BRL and USD (rate of the purchase date).
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_olist__orders')
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: Identifies the person across orders.
+        data_tests:
+          - not_null
+      - name: brl_per_usd
+        description: USD/BRL rate on the purchase date (last business day if needed).
+        data_tests:
+          - not_null
+      - name: order_value_brl
+        description: Items + freight in BRL. Zero for orders without items.
+      - name: order_value_usd
+        description: order_value_brl converted at brl_per_usd.
+        data_tests:
+          - not_null
+      - name: payment_value_brl
+        description: Amount actually paid. Can differ from order_value_brl (installment interest, vouchers).
+      - name: delivery_days
+        description: Days from purchase to delivery. Null if not delivered.
+      - name: days_vs_estimate
+        description: Delivery date minus estimated date. Positive means late.
+      - name: is_late
+        description: Delivered after the estimated date. Null if not delivered.
+      - name: customer_order_number
+        description: 1 for the person's first order, 2 for the second, and so on.
+        data_tests:
+          - not_null
+      - name: customer_first_purchase_date
+        description: Date of the person's first order. Defines the cohort.
