@@ -1,0 +1,83 @@
+name: dbt docs
+
+# Generates the dbt documentation site (models, columns, tests and lineage graph)
+# from the real datasets and publishes it to GitHub Pages on every push to main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dbt/**"
+      - ".github/workflows/dbt-docs.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: dbt-docs
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write   # Google auth (Workload Identity Federation) and Pages deploy
+  pages: write
+
+env:
+  GCP_PROJECT_ID: olist-analytics-512803
+
+jobs:
+  build-docs:
+    name: Generate docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: dbt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r ../requirements.txt
+
+      - name: Authenticate to Google Cloud (keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/39493287935/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: dbt-ci@olist-analytics-512803.iam.gserviceaccount.com
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      # Read-only: compiles the project and reads table metadata (row counts, column types)
+      # from the real staging / intermediate / marts datasets. Nothing is written.
+      - name: Generate documentation
+        run: dbt docs generate --target dev --static
+
+      - name: Prepare site
+        run: |
+          mkdir -p ../site
+          cp target/static_index.html ../site/index.html
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
