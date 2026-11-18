@@ -67,6 +67,8 @@ Star schema in the `marts` dataset, built and tested with dbt:
 
 USD values use the Central Bank rate of the purchase date; weekends and holidays use the last business day's rate.
 
+📘 **[Browse the dbt documentation and lineage graph](https://arthurcota.github.io/olist-analytics-stack/)**: every model, column and test, rebuilt automatically on each change.
+
 ## Key results
 
 Preliminary numbers from the marts (full analysis in progress):
